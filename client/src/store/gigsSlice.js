@@ -43,7 +43,8 @@ const gigsSlice = createSlice({
       })
       .addCase(fetchGigs.fulfilled, (state, action) => {
         state.loading = false;
-        state.list = action.payload;
+        // Ensure we always store an array to avoid runtime map errors
+        state.list = Array.isArray(action.payload) ? action.payload : [];
       })
       .addCase(fetchGigs.rejected, (state, action) => {
         state.loading = false;

@@ -61,7 +61,10 @@ app.get('/', (req, res) => {
 /* ================= MIDDLEWARE ================= */
 app.use(
   cors({
-    origin: "https://gig-flow-ochre.vercel.app",
+    origin: [ 
+      'http://localhost:5173',
+    "https://gig-flow-ochre.vercel.app",
+    ],
     credentials: true,
   })
 );
@@ -84,7 +87,16 @@ server.listen(PORT, () => {
 /* ================= DATABASE ================= */
 const MONGO_URI = process.env.MONGO_URI;
 
+if (!MONGO_URI) {
+  console.error('❌ MONGO_URI environment variable is not set!');
+  console.error('Please create a .env file in the server directory with: MONGO_URI=your_mongodb_connection_string');
+  process.exit(1);
+}
+
 mongoose
   .connect(MONGO_URI)
-  .then(() => console.log('MongoDB connected'))
-  .catch((err) => console.error('MongoDB error:', err));
+  .then(() => console.log('✅ MongoDB connected'))
+  .catch((err) => {
+    console.error('❌ MongoDB connection error:', err.message);
+    process.exit(1);
+  });

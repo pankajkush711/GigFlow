@@ -7,12 +7,20 @@ dotenv.config();
 
 const router = express.Router();
 
+/* ================= TOKEN ================= */
 const createToken = (user) =>
   jwt.sign(
     { id: user._id, email: user.email },
     process.env.JWT_SECRET || 'devsecret',
     { expiresIn: '7d' }
   );
+
+/* ================= COOKIE CONFIG (IMPORTANT) ================= */
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',  // true for HTTPS (Railway), false for localhost
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',  // 'none' for cross-origin, 'lax' for same-origin
+};
 
 /* ================= REGISTER ================= */
 router.post('/register', async (req, res) => {
@@ -32,23 +40,29 @@ router.post('/register', async (req, res) => {
     const token = createToken(user);
 
     res
-      .cookie('token', token, {
-        httpOnly: true,
-        secure: true,        // ✅ REQUIRED FOR HTTPS
-        sameSite: 'none',    // ✅ REQUIRED FOR Vercel + Railway
-      })
+      .cookie('token', token, cookieOptions)
       .status(201)
       .json({
         user: { id: user._id, name: user.name, email: user.email },
       });
   } catch (err) {
     console.error('Register error:', err);
+    console.error('Error details:', err.message);
+    console.error('Error stack:', err.stack);
 
     if (err.code === 11000) {
       return res.status(400).json({ message: 'Email already in use' });
     }
 
-    return res.status(500).json({ message: 'Server error' });
+    // More specific error messages for debugging
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ message: err.message });
+    }
+
+    return res.status(500).json({ 
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 
@@ -74,11 +88,7 @@ router.post('/login', async (req, res) => {
     const token = createToken(user);
 
     res
-      .cookie('token', token, {
-        httpOnly: true,
-        secure: true,        // ✅ REQUIRED
-        sameSite: 'none',    // ✅ REQUIRED
-      })
+      .cookie('token', token, cookieOptions)
       .status(200)
       .json({
         user: { id: user._id, name: user.name, email: user.email },
@@ -92,11 +102,7 @@ router.post('/login', async (req, res) => {
 /* ================= LOGOUT ================= */
 router.post('/logout', (req, res) => {
   res
-    .clearCookie('token', {
-      httpOnly: true,
-      secure: true,        // ✅ REQUIRED
-      sameSite: 'none',    // ✅ REQUIRED
-    })
+    .clearCookie('token', cookieOptions)
     .json({ message: 'Logged out' });
 });
 
