@@ -8,13 +8,17 @@ dotenv.config();
 const router = express.Router();
 
 const createToken = (user) =>
-  jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET || 'devsecret', {
-    expiresIn: '7d',
-  });
+  jwt.sign(
+    { id: user._id, email: user.email },
+    process.env.JWT_SECRET || 'devsecret',
+    { expiresIn: '7d' }
+  );
 
+/* ================= REGISTER ================= */
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
+
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'All fields are required' });
     }
@@ -30,31 +34,29 @@ router.post('/register', async (req, res) => {
     res
       .cookie('token', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        secure: true,        // ✅ REQUIRED FOR HTTPS
+        sameSite: 'none',    // ✅ REQUIRED FOR Vercel + Railway
       })
+      .status(201)
       .json({
         user: { id: user._id, name: user.name, email: user.email },
       });
   } catch (err) {
     console.error('Register error:', err);
 
-    // Handle common Mongo/Mongoose errors with clearer messages
     if (err.code === 11000) {
       return res.status(400).json({ message: 'Email already in use' });
     }
 
-    if (err.name === 'ValidationError') {
-      return res.status(400).json({ message: 'Invalid user data' });
-    }
-
-    return res.status(500).json({ message: err.message || 'Server error' });
+    return res.status(500).json({ message: 'Server error' });
   }
 });
 
+/* ================= LOGIN ================= */
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+
     if (!email || !password) {
       return res.status(400).json({ message: 'Email and password are required' });
     }
@@ -74,27 +76,28 @@ router.post('/login', async (req, res) => {
     res
       .cookie('token', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        secure: true,        // ✅ REQUIRED
+        sameSite: 'none',    // ✅ REQUIRED
       })
+      .status(200)
       .json({
         user: { id: user._id, name: user.name, email: user.email },
       });
   } catch (err) {
-    console.error(err);
+    console.error('Login error:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
 
+/* ================= LOGOUT ================= */
 router.post('/logout', (req, res) => {
   res
     .clearCookie('token', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: true,        // ✅ REQUIRED
+      sameSite: 'none',    // ✅ REQUIRED
     })
     .json({ message: 'Logged out' });
 });
 
 export default router;
-
