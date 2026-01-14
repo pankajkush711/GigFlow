@@ -24,7 +24,36 @@ const io = new Server(server, {
   transports: ['websocket', 'polling'],
 });
 
-/* ================= ROOT ROUTE (CRITICAL) ================= */
+// ✅ ADD THIS MAP
+const userSockets = new Map();
+
+// ✅ SOCKET CONNECTION
+io.on('connection', (socket) => {
+  const { userId } = socket.handshake.query;
+
+  if (userId) {
+    userSockets.set(String(userId), socket.id);
+  }
+
+  socket.on('disconnect', () => {
+    for (const [uid, sid] of userSockets.entries()) {
+      if (sid === socket.id) {
+        userSockets.delete(uid);
+        break;
+      }
+    }
+  });
+});
+
+// ✅ EXPORT THIS FUNCTION (THIS FIXES THE ERROR)
+export const notifyUserHired = (userId, payload) => {
+  const socketId = userSockets.get(String(userId));
+  if (socketId) {
+    io.to(socketId).emit('hired', payload);
+  }
+};
+
+/* ================= ROOT ROUTE ================= */
 app.get('/', (req, res) => {
   res.status(200).send('GigFlow backend is running');
 });
@@ -39,7 +68,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/gigs', gigRoutes);
 app.use('/api/bids', bidRoutes);
 
-/* ================= SERVER START (IMPORTANT) ================= */
+/* ================= SERVER ================= */
 const PORT = process.env.PORT || 8080;
 
 server.listen(PORT, () => {
